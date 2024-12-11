@@ -19,6 +19,8 @@ class HomeeClient:
         self.attributes = []  # Stores attributes of nodes
         self.groups = []  # Stores groups
         self.homeegrams = []  # Stores homeegrams
+        self.user = None  # Stores user information
+        self.connected = False  # Connection status
 
     def _hash_password(self):
         """Hash the password using SHA512."""
@@ -66,6 +68,7 @@ class HomeeClient:
                 ws_url,
                 subprotocols=["v2"]
             )
+            self.connected = True
             print("WebSocket connection established.")
             await self.initialize_homee_data()
             asyncio.create_task(self._listen_to_websocket())
@@ -77,6 +80,7 @@ class HomeeClient:
         await self.websocket.send("get:nodes")
         await self.websocket.send("get:groups")
         await self.websocket.send("get:homeegrams")
+        await self.websocket.send("get:user")
 
     async def _listen_to_websocket(self):
         """Listen to incoming WebSocket messages and process them."""
@@ -98,7 +102,9 @@ class HomeeClient:
                 self.groups = data["groups"]
             if "homeegrams" in data:
                 self.homeegrams = data["homeegrams"]
-            # print(f"Processed message: {data}")
+            if "user" in data:
+                self.user = data["user"]
+            print(f"Processed message: {data}")
         except json.JSONDecodeError:
             print(f"Failed to decode message: {message}")
 
@@ -118,6 +124,10 @@ class HomeeClient:
         """Return a list of homeegrams."""
         return self.homeegrams
 
+    async def get_user(self):
+        """Return user information."""
+        return self.user
+
     async def send_command(self, command):
         """Send a raw command to the WebSocket."""
         if not self.websocket:
@@ -128,6 +138,7 @@ class HomeeClient:
         """Close the WebSocket connection."""
         if self.websocket:
             await self.websocket.close()
+            self.connected = False
             print("WebSocket connection closed.")
 
     async def start_homeegram(self, homeegram_id):
